@@ -1,20 +1,47 @@
 /* global require, module */
 
-var EmberApp = require('ember-cli/lib/broccoli/ember-app');
+var stew = require('broccoli-stew');
+var concat = require('broccoli-sourcemap-concat');
+var ES6Modules = require('broccoli-es6modules');
+var es6Transpiler = require('broccoli-babel-transpiler');
+var mergeTrees = require('broccoli-merge-trees');
+var find = stew.find;
+var mv = stew.mv;
+var log = stew.log;
+var rename = stew.rename;
 
-var app = new EmberApp();
+var app = 'app';
+app = find(app, '**/*.js');
 
-// Use `app.import` to add additional libraries to the generated
-// output files.
-//
-// If you need to use different assets in different
-// environments, specify an object as the first parameter. That
-// object's keys should be the environment name and the values
-// should be the asset to use in that environment.
-//
-// If the library that you are including contains AMD or ES6
-// modules that you would like to import into your application
-// please specify an object with the list of modules as keys
-// along with the exports of each module as its value.
+app = new ES6Modules(app, {
+  esperantoOptions: {
+    absolutePaths: true,
+    strict: true
+  }
+});
 
-module.exports = app.toTree();
+var moment = 'node_modules/ember-moment';
+var momentApp = rename(find(moment, 'app/**/*.js'), function(relativePath) {
+  return relativePath.replace('node_modules/ember-moment/app', 'app');
+});
+var momentAddon = rename(find(moment, 'addon/**/*.js'), function(relativePath) {
+  return relativePath.replace('node_modules/ember-moment/addon', 'ember-moment');
+});
+
+app = es6Transpiler(app, {
+  blacklist: ['useStrict', 'es6.modules']
+});
+
+
+
+app = mergeTrees([app, momentApp], {overwrite: true});
+app = mergeTrees([app, momentAddon]);
+app = log(app);
+
+// app = concat(app, {
+//   inputFiles: ['**/*.js'],
+//   outputFile: '/~packager-proto/app.js'
+// });
+
+
+module.exports = app;
