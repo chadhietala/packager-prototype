@@ -37,7 +37,7 @@
   },
   "dependencies": {
     "broccoli-babel-transpiler": "^4.0.1",
-    "broccoli-es6modules": "^0.5.1",
+    "broccoli-es6modules": "git://github.com/chadhietala/broccoli-es6modules.git#gen-dep-graph",
     "broccoli-sourcemap-concat": "^0.4.3",
     "broccoli-stew": "^0.2.1"
   }
