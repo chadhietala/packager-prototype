@@ -11,6 +11,11 @@ var walkSync = require('walk-sync');
 var Funnel = require('broccoli-funnel');
 var fs = require('fs-extra');
 var path = require('path');
+var RSVP = require('rsvp');
+var quickTemp = require('quick-temp');
+var flatten = require('lodash-node/modern/array/flatten');
+var uniq = require('lodash-node/modern/array/uniq');
+var mapSeries = require('promise-map-series');
 var find = stew.find;
 var mv = stew.mv;
 var log = stew.log;
@@ -35,7 +40,6 @@ var DependencyGraph = CoreObject.extend({
         return path === '/dep-graph.json'; 
       })[0];
       var depGraphJson = fs.readJSONSync(path.join(srcDir, depGraph));
-      console.log(depGraphJson);
       return '/';
     });
   },
@@ -52,32 +56,125 @@ var ALL_DEPENDENCIES = {
   }
 };
 
-function syncForwardDepedencies(destination, dep, dependencies) {
+function syncForwardDepedencies(destination, dep, dependencies ) {
+  // TODO 
+  // Once again we just care about ember-moment at this point 
+  var imports = uniq(flatten(Object.keys(dependencies).map(function (file) {
+    return dependencies[file].imports;
+  }))).filter(function(imprt) {
+    return imprt.indexOf('ember-moment') > -1;
+  });
 
+  imports.forEach(function (argument) {
+    // body...
+  });
 }
+
+var DepMapper = CoreObject.extend({
+  init: function(inputTree, options) {
+    this.inputTree = inputTree;
+    this.app = options.app;
+    this.graphs = null;
+    if (!options) {
+      options = {};
+    }
+
+    this.setupForStaging();
+
+  },
+  setupForStaging: function() {
+    this.graphs = new Funnel(this.inputTree, {
+      include: ['**/dep-graph.json']
+    });
+    this.staging = this.inputTree;
+  },
+
+  read: function(readTree) {
+    quickTemp.makeOrRemake(this, 'tmpDestDir');
+    return Promise.resolve(this.write(readTree, this.tmpDestDir)).then(function () {
+      return this.tmpDestDir;
+    }.bind(this));
+  },
+
+  write: function(readTree, destDir) {
+    return readTree(this.graphs).then(function(srcDir) {
+      var paths = walkSync(srcDir);
+
+      return mapSeries(paths, function(relativePath) {
+        if (relativePath.slice(-1) === '/') {
+          fs.mkdirsSync(destDir + '/' + relativePath);
+        } else {
+          
+          var dep = relativePath.split('/')[0]
+          var dest = destDir + '/' + relativePath.split('/')[0];
+          var deps = fs.readJSONSync(path.join(srcDir, relativePath));
+
+          return this.resolve(dest, dep);
+          // var appGraph = fs.readJSONSync(path.join(srcDir, this.app, 'dep-graph.json'));
+          // var files = Object.keys(appGraph);
+
+          // var deps = uniq(flatten(files.map(function(file) {
+          //   return appGraph[file].imports.filter(function(imprt) {
+          //      return imprt !== 'exports';
+          //   }, this);
+          // }, this)));
+
+
+          // var packages = uniq(deps.map(function(dep) {
+          //   return dep.split('/')[0];
+          // }));
+
+          // // TODO 
+          // // this removes all the packages except ember-moment
+          // packages.splice(packages.indexOf('ember'), 1);
+
+          // packages.forEach(function (package) {
+          //   fs.mkdirsSync(srcDir + '/' + package);
+          // });
+
+          // console.log(packages);
+
+          // syncForwardDepedencies(srcDir, this.app, appGraph);
+
+          // return Promise.resolve();
+        }
+
+         
+      }.bind(this));
+    }.bind(this));
+  },
+
+  resolve: function(destination, dep) {
+    return this.syncForwardDepedencies(destination, dep).then(function(linked) {
+      // return this.depsFor(linked).then(function(linkedDependencies) {
+      //   this.ALL_DEPENDENCIES.update(linked.name, linkedDependencies);
+      //   return Promise.all(this.)
+      // }.bind(this));
+    }.bind(this));
+  },
+
+  syncForwardDepedencies: function(destination, dep) {
+    console.log(destination, dep);
+
+    return Promise.resolve();
+    // return new Promise(function(resolve, reject) {
+
+    // });
+  },
+
+  cleanup: function() {
+    fs.removeSync(this.tmpDestDir);
+  }
+});
+
+
+
+
+
 
 function resolve(destination, dep) {
   return syncForwardDepedencies(destination, dep, ALL_DEPENDENCIES.for(dep));
 }
-
-// var Dependency = CoreObject.extend({
-//   init: function() {
-//   }
-// });
-
-// var Resolver = CachingWriter.extend({
-//   init: function(depGraph) {
-//     if (typeof depGraph === 'object') {
-//       this.depGraph = depGraph;
-//     } else if (typeof depGraph === 'function') {
-//       this.depGraph = new DependencyGraph();
-//     } else {
-//       throw new Error('You must pass a constructor or object');
-//     }
-//   },
-//   resolve: function() {},
-
-// });
 
 
 var app = 'app';
@@ -107,21 +204,25 @@ app = new ES6Modules(app, {
 });
 
 
-function moveGraphs() {
-  app = rename(app, 'ember-moment/', 'staging/ember-moment/');
+// function moveGraphs() {
+//   app = rename(app, 'ember-moment/', 'staging/ember-moment/');
 
-  var addon = new Funnel(app, {
-    srcDir: 'staging/',
-    include: ['**/dep-graph.json'],
-    destDir: '/'
-  });
-  app = rm(app, 'staging/**/dep-graph.json');
-  app = mergeTrees([app, addon]);
-}
-moveGraphs();
+//   var addon = new Funnel(app, {
+//     srcDir: 'staging/',
+//     include: ['**/dep-graph.json'],
+//     destDir: '/'
+//   });
+//   app = rm(app, 'staging/**/dep-graph.json');
+//   app = mergeTrees([app, addon]);
+// }
+// moveGraphs();
+
+app = new DepMapper(app, {
+  app: 'packager-proto'
+});
 
 
-var app = resolve('/packager-proto', find(app, 'packager-proto'));
+// var app = resolve('/packager-proto', find(app, 'packager-proto'));
 
 // var addons = log(find(app, '**/dep-graph.json');
 
@@ -138,7 +239,7 @@ var app = resolve('/packager-proto', find(app, 'packager-proto'));
 // dist/dependency-graph.json
 
 
-app = log(app);
+// app = log(app);
 
 
 

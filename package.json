@@ -44,6 +44,11 @@
     "broccoli-sourcemap-concat": "^0.4.3",
     "broccoli-stew": "^0.2.1",
     "core-object": "^1.1.0",
-    "fs-extra": "^0.16.5"
+    "fs-extra": "^0.16.5",
+    "lodash-node": "^3.5.0",
+    "promise-map-series": "^0.2.1",
+    "quick-temp": "^0.1.2",
+    "rsvp": "^3.0.17",
+    "walk-sync": "^0.1.3"
   }
 }
