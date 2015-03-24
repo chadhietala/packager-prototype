@@ -90,7 +90,8 @@ var DepMapper = CoreObject.extend({
 
   readGraph: function(entry, graphPath, destDir) {
     var graph = fs.readJSONSync(graphPath);
-    AllDependencies.update(entry, graph);    
+    AllDependencies.update(entry, graph);
+
     var files = Object.keys(graph);
 
     return files.map(function(file) {
@@ -107,26 +108,23 @@ var DepMapper = CoreObject.extend({
       return fs.existsSync(path.join(srcDir, package));
     });
 
-    console.log(imports);
     imports = imports.forEach(function(imprt) {
       var package = imprt.split('/')[0];
 
       if (fs.existsSync(path.join(srcDir, imprt + '.js'))) {
 
-        if (!path.dirname(path.join(destDir, imprt))) {
+        // if (!path.dirname(path.join(destDir, imprt))) {
           fs.mkdirsSync(path.dirname(path.join(destDir, imprt)));
-        }
+        // }
 
-        if (!path.join(destDir, imprt + '.js')) {
+        // if (!path.join(destDir, imprt + '.js')) {
           symlinkOrCopySync(path.join(srcDir, imprt + '.js'), path.join(destDir, imprt + '.js'));
-        }
-        
+        // }
 
-        if (!AllDependencies.for(imprt)) {
-          imports = self.readGraph(package, path.join(srcDir, package, 'dep-graph.json'), destDir);
-
+        if (!AllDependencies.graph[package]) {
+          AllDependencies.update(package, fs.readJSONSync(path.join(srcDir, package, 'dep-graph.json')));
+          imports = AllDependencies.graph[package][imprt + '.js'].imports;
           self.resolve(srcDir, destDir, imports);
-
         }
 
       }
