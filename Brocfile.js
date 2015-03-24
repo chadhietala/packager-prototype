@@ -56,7 +56,23 @@ var DepMapper = CoreObject.extend({
     var self = this;
     return readTree(this.inputTree).then(function(srcDir) {
 
+      var paths = walkSync(srcDir);
+
+
       self.entries.forEach(function(entry) {
+        fs.mkdirsSync(path.join(destDir, entry));
+
+        // Sync the entry
+        var entryFiles = paths.filter(function(relativePath) {
+          return relativePath.indexOf(entry) > -1
+                 && relativePath.slice(-1) !== '/'
+                 && relativePath.indexOf('dep-graph.json') < 0;
+
+        }).forEach(function(relativePath) {
+          fs.mkdirsSync(path.dirname(path.join(destDir, relativePath)));
+          symlinkOrCopySync(path.join(srcDir, relativePath), path.join(destDir, relativePath))
+        });
+
         var topImports = self.readGraph(entry, path.join(srcDir, entry, 'dep-graph.json'));
         self.resolve(srcDir, destDir, topImports);
       });
@@ -79,11 +95,18 @@ var DepMapper = CoreObject.extend({
     var self = this;
     imports = uniq(flatten(imports))
 
+
     imports = imports.filter(function(imprt) {
-      var package = imprt.split('/')[0]
+      var package = imprt.split('/')[0];
       return fs.existsSync(path.join(srcDir, package));
     }).forEach(function(imprt) {
-      symlinkOrCopySync(path)
+
+      if (fs.existsSync(path.join(srcDir, imprt + '.js'))) {
+        fs.mkdirsSync(path.dirname(path.join(destDir, imprt)));
+        symlinkOrCopySync(path.join(srcDir, imprt + '.js'), path.join(destDir, imprt + '.js'));
+      }
+
+
     });
 
 
