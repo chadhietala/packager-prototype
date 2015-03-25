@@ -32,10 +32,12 @@ var AllDependencies = {
       return null;
     }
 
-    if (!this.graph[entry][file]) {
-      return null;
+    // Passed an entry
+    if (this.graph[file]) {
+      return this.graph[file];
     }
 
+    // Passed a file
     return this.graph[entry][file].imports;    
   }
 };
@@ -94,25 +96,29 @@ var DepMapper = CoreObject.extend({
     });
   },
 
+  _getEntry: function(relativePath) {
+    return relativePath.split('/')[0];
+  },
+
   resolve: function(srcDir, destDir, imports) {
-    var self = this;
+    var self = this, entry;
     
     uniq(flatten(imports)).filter(function(imprt) {
-      var package = imprt.split('/')[0];
-      return fs.existsSync(path.join(srcDir, package));
+      entry = self._getEntry(imprt);
+      return fs.existsSync(path.join(srcDir, entry));
     }).forEach(function(imprt) {
+      entry = self._getEntry(imprt);
       imprt = imprt + '.js';
 
-      var package = imprt.split('/')[0];
       var dep = path.join(srcDir, imprt);
-      var depGraph = path.join(srcDir, package, 'dep-graph.json');
+      var depGraph = path.join(srcDir, entry, 'dep-graph.json');
 
       if (fs.existsSync(path.join(srcDir, imprt))) {
         var destination = path.join(destDir, imprt);
 
         self.syncForwardDependencies(destination, dep);
 
-        if (!AllDependencies.graph[package]) {
+        if (!AllDependencies.for(entry)) {
           self.resolve(srcDir, destDir, fs.readJSONSync(depGraph));
         }
 
