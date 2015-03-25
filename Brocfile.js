@@ -122,9 +122,7 @@ var DepMapper = CoreObject.extend({
         self.syncForwardDependencies(destination, dep);
 
         if (!AllDependencies.graph[package]) {
-          AllDependencies.update(package, fs.readJSONSync(depGraph));
-          imports = AllDependencies.graph[package][imprt].imports;
-          self.resolve(srcDir, destDir, imports);
+          self.resolve(srcDir, destDir, fs.readJSONSync(depGraph));
         }
 
       }
