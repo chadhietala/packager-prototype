@@ -19,26 +19,26 @@ var find = stew.find;
 var rename = stew.rename;
 
 var AllDependencies = {
-  graph: {},
+  _graph: {},
   update: function(entry, dependencies) {
-    this.graph[entry] = dependencies;
+    this._graph[entry] = dependencies;
   },
 
   for: function(file) {
     var parts = file.split('/');
     var entry = parts[0];
 
-    if (!this.graph[entry]) {
+    if (!this._graph[entry]) {
       return null;
     }
 
     // Passed an entry
-    if (this.graph[file]) {
-      return this.graph[file];
+    if (this._graph[file]) {
+      return this._graph[file];
     }
 
     // Passed a file
-    return this.graph[entry][file].imports;    
+    return this._graph[entry][file].imports;    
   }
 };
 
@@ -55,6 +55,31 @@ var DepMapper = CoreObject.extend({
     }.bind(this));
   },
 
+  write: function(readTree, destDir) {
+    var self = this;
+    return readTree(this.inputTree).then(function(srcDir) {
+      return self.resolveEntries(srcDir, destDir);
+    });
+  },
+
+  resolveEntries: function(srcDir, destDir) {
+    var self = this;
+    var paths = walkSync(srcDir);
+
+    this.entries.forEach(function(entry) {
+      var entryDepGraphPath = path.join(srcDir, entry, 'dep-graph.json');
+
+      // Sync the entry
+      paths.filter(self._isEntryFiles(entry)).forEach(function(relativePath) {
+        self.syncForwardDependencies(path.join(destDir, relativePath), path.join(srcDir, relativePath));
+      });
+
+      self.resolve(srcDir, destDir, self.flattenEntryImports(entry, entryDepGraphPath));
+    });
+
+    return destDir;
+  },
+
   _isEntryFiles:function(entry) {
     return function(relativePath) {
       return relativePath.indexOf(entry) > -1 && relativePath.slice(-1) !== '/' && relativePath.indexOf('dep-graph.json') < 0;
@@ -66,34 +91,18 @@ var DepMapper = CoreObject.extend({
     symlinkOrCopySync(dep, destination);
   },
 
-  write: function(readTree, destDir) {
-    var self = this;
-    return readTree(this.inputTree).then(function(srcDir) {
-      var paths = walkSync(srcDir);
-
-      self.entries.forEach(function(entry) {
-        var entryDepGraphPath = path.join(srcDir, entry, 'dep-graph.json');
-        // Sync the entry
-        paths.filter(self._isEntryFiles(entry)).forEach(function(relativePath) {
-          self.syncForwardDependencies(path.join(destDir, relativePath), path.join(srcDir, relativePath));
-        });
-
-        self.resolve(srcDir, destDir, self.readGraph(entry, entryDepGraphPath));
-      });
-
-      return destDir;
-    });
-  },
-
-  readGraph: function(entry, graphPath) {
-    var graph = fs.readJSONSync(graphPath);
-    AllDependencies.update(entry, graph);
-
+  flattenEntryImports: function(entry, graphPath) {
+    this.updateGraph(entry, graphPath);
+    var graph = AllDependencies.for(entry);
     var files = Object.keys(graph);
 
-    return files.map(function(file) {
+    return uniq(flatten(files.map(function(file) {
       return AllDependencies.for(file);
-    });
+    })));
+  },
+
+  updateGraph: function(entry, graphPath) {
+    AllDependencies.update(entry, fs.readJSONSync(graphPath));
   },
 
   _getEntry: function(relativePath) {
@@ -103,8 +112,12 @@ var DepMapper = CoreObject.extend({
   resolve: function(srcDir, destDir, imports) {
     var self = this, entry;
     
-    uniq(flatten(imports)).filter(function(imprt) {
+    imports.filter(function(imprt) {
       entry = self._getEntry(imprt);
+
+      // NOTE: This is where we would need to actually introduce
+      // alternative resolution paths. Current I'm filering out
+      // the things like 'ember', 'moment', etc.
       return fs.existsSync(path.join(srcDir, entry));
     }).forEach(function(imprt) {
       entry = self._getEntry(imprt);
@@ -119,7 +132,8 @@ var DepMapper = CoreObject.extend({
         self.syncForwardDependencies(destination, dep);
 
         if (!AllDependencies.for(entry)) {
-          self.resolve(srcDir, destDir, fs.readJSONSync(depGraph));
+          self.updateGraph(entry, depGraph);
+          self.resolve(srcDir, destDir, AllDependencies.for(imprt));
         }
 
       }
