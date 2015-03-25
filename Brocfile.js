@@ -104,21 +104,17 @@ var DepMapper = CoreObject.extend({
   },
 
   resolve: function(srcDir, destDir, imports) {
-    imports = uniq(flatten(imports));
     var self = this;
-
-    imports = imports.filter(function(imprt) {
+    
+    uniq(flatten(imports)).filter(function(imprt) {
       var package = imprt.split('/')[0];
       return fs.existsSync(path.join(srcDir, package));
-    });
-
-    imports = imports.forEach(function(imprt) {
+    }).forEach(function(imprt) {
       imprt = imprt + '.js';
 
       var package = imprt.split('/')[0];
       var dep = path.join(srcDir, imprt);
       var depGraph = path.join(srcDir, package, 'dep-graph.json');
-
 
       if (fs.existsSync(path.join(srcDir, imprt))) {
         var destination = path.join(destDir, imprt);
