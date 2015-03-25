@@ -91,6 +91,14 @@ var DepMapper = CoreObject.extend({
     symlinkOrCopySync(dep, destination);
   },
 
+  /**
+   * This is only called for an entry e.g. an app or engine.
+   * Since an entry is the entry node in the graph you can safely
+   * just get the unique dependencies in the entry.
+   * @param  {String} entry     A top level node
+   * @param  {String} graphPath The path to dep-graph.json
+   * @return {Array}            The direct dependencies for the entry
+   */
   flattenEntryImports: function(entry, graphPath) {
     this.updateGraph(entry, graphPath);
     var graph = AllDependencies.for(entry);
@@ -133,6 +141,8 @@ var DepMapper = CoreObject.extend({
 
         if (!AllDependencies.for(entry)) {
           self.updateGraph(entry, depGraph);
+          // We now look at the direct path to resolve all the
+          // transitive dependencies.
           self.resolve(srcDir, destDir, AllDependencies.for(imprt));
         }
 
