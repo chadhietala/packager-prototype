@@ -2,27 +2,20 @@
 
 // LULZ need to remove about of this
 var stew = require('broccoli-stew');
-var concat = require('broccoli-sourcemap-concat');
 var ES6Modules = require('broccoli-es6modules');
 var es6Transpiler = require('broccoli-babel-transpiler');
 var mergeTrees = require('broccoli-merge-trees');
-var CachingWriter = require('broccoli-caching-writer');
 var CoreObject = require('core-object');
 var walkSync = require('walk-sync');
-var Funnel = require('broccoli-funnel');
 var fs = require('fs-extra');
 var path = require('path');
 var RSVP = require('rsvp');
 var quickTemp = require('quick-temp');
 var flatten = require('lodash-node/modern/array/flatten');
 var uniq = require('lodash-node/modern/array/uniq');
-var mapSeries = require('promise-map-series');
 var symlinkOrCopySync = require('symlink-or-copy').sync;
 // var Bfs = require('broccoli-fs');
 var find = stew.find;
-var mv = stew.mv;
-var log = stew.log;
-var rm = stew.rm;
 var rename = stew.rename;
 
 var AllDependencies = {
@@ -55,16 +48,14 @@ var DepMapper = CoreObject.extend({
   },
   read: function(readTree) {
     quickTemp.makeOrRemake(this, 'tmpDestDir');
-    return Promise.resolve(this.write(readTree, this.tmpDestDir)).then(function () {
+    return RSVP.Promise.resolve(this.write(readTree, this.tmpDestDir)).then(function () {
       return this.tmpDestDir;
     }.bind(this));
   },
 
   _isEntryFiles:function(entry) {
     return function(relativePath) {
-      return relativePath.indexOf(entry) > -1
-             && relativePath.slice(-1) !== '/'
-             && relativePath.indexOf('dep-graph.json') < 0;
+      return relativePath.indexOf(entry) > -1 && relativePath.slice(-1) !== '/' && relativePath.indexOf('dep-graph.json') < 0;
     };
   },
 
@@ -79,9 +70,9 @@ var DepMapper = CoreObject.extend({
       var paths = walkSync(srcDir);
 
       self.entries.forEach(function(entry) {
-        var entryDepGraphPath = path.join(srcDir, entry, 'dep-graph.json')
+        var entryDepGraphPath = path.join(srcDir, entry, 'dep-graph.json');
         // Sync the entry
-        var entryFiles = paths.filter(self._isEntryFiles(entry)).forEach(function(relativePath) {
+        paths.filter(self._isEntryFiles(entry)).forEach(function(relativePath) {
           self.syncForwardDependencies(path.join(destDir, relativePath), path.join(srcDir, relativePath));
         });
 
@@ -92,7 +83,7 @@ var DepMapper = CoreObject.extend({
     });
   },
 
-  readGraph: function(entry, graphPath, destDir) {
+  readGraph: function(entry, graphPath) {
     var graph = fs.readJSONSync(graphPath);
     AllDependencies.update(entry, graph);
 
@@ -133,7 +124,7 @@ var DepMapper = CoreObject.extend({
     fs.removeSync(this.tmpDestDir);
   }
 
-})
+});
 
 
 var app = 'app';
