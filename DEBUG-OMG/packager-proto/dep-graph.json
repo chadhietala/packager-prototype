@@ -1,0 +1,40 @@
+{
+  "app/app.js": {
+    "imports": [
+      "exports",
+      "ember",
+      "app/config/environment"
+    ],
+    "exports": [
+      "NOT IMPLEMENTED YET"
+    ]
+  },
+  "app/config/environment.js": {
+    "imports": [],
+    "exports": [
+      "NOT IMPLEMENTED YET"
+    ]
+  },
+  "app/initializers/ember-moment.js": {
+    "imports": [
+      "exports",
+      "ember-moment/helpers/moment",
+      "ember-moment/helpers/ago",
+      "ember-moment/helpers/duration",
+      "ember"
+    ],
+    "exports": [
+      "NOT IMPLEMENTED YET"
+    ]
+  },
+  "app/router.js": {
+    "imports": [
+      "exports",
+      "ember",
+      "app/config/environment"
+    ],
+    "exports": [
+      "NOT IMPLEMENTED YET"
+    ]
+  }
+}
