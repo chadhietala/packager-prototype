@@ -17,6 +17,7 @@ var symlinkOrCopySync = require('symlink-or-copy').sync;
 // var Bfs = require('broccoli-fs');
 var find = stew.find;
 var rename = stew.rename;
+var PrePackager = require('ember-cli-pre-packager');
 
 var AllDependencies = {
   _graph: {},
@@ -156,25 +157,50 @@ var DepMapper = CoreObject.extend({
 
 });
 
-
-var app = 'app';
-app = find(app, '**/*.js');
-
+Error.stackTraceLimit = Infinity;
+var ember = 'node_modules/ember';
 var moment = 'node_modules/ember-moment';
-var momentApp = rename(find(moment, 'app/**/*.js'), function(relativePath) {
-  return relativePath.replace('node_modules/ember-moment/app', 'app');
+
+fs.mkdirsSync('./node_modules/ember/addon');
+fs.mkdirsSync('./node_modules/ember/app');
+fs.copySync('./bower_components/ember/ember.debug.js', './' + ember + '/addon/ember.js');
+fs.writeJsonSync('./' + ember + '/addon/dep-graph.json', {
+  "ember.js": {
+    "imports": [],
+    "exports": ["NOT IMPLEMENTED YET"]
+  }
 });
 
-var momentAddon = rename(find(moment, 'addon/**/*.js'), function(relativePath) {
-  return relativePath.replace('node_modules/ember-moment/addon', 'ember-moment');
+var emberDep = find(ember + '/addon/{dep-graph.json}');
+var app = 'app';
+app = find(app, '**/*.{js,json}');
+
+var deps = ['ember-moment', 'ember'];
+
+var addonAppFolders = deps.map(function(depName) {
+  return rename(find('node_modules/' + depName, 'app/**/*.js'), function(relativePath) {
+    return relativePath.replace('node_modules/' + depName + '/app', 'app');
+  });
 });
 
-app = es6Transpiler(app, {
+var addonFolders = deps.map(function(depName) {
+  return new ES6Modules(rename(find('node_modules/' + depName, 'addon/**/*.js'), function (relativePath) {
+    return relativePath.replace('node_modules/' + depName + '/addon', depName);
+  }), {
+    esperantoOptions: {
+      absolutePaths: true,
+      strict: true
+    }
+  });
+});
+
+// capture json
+
+
+app = es6Transpiler(find(addonAppFolders.concat(app)), {
   blacklist: ['useStrict', 'es6.modules']
 });
 
-app = mergeTrees([momentApp, app], {overwrite: true});
-app = rename(mergeTrees([app , momentAddon]), 'app/', 'packager-proto/');
 
 app = new ES6Modules(app, {
   esperantoOptions: {
@@ -183,7 +209,18 @@ app = new ES6Modules(app, {
   }
 });
 
-app = new DepMapper(app, {
+
+// capture json
+
+app = rename(app, 'app/', 'packager-proto/');
+
+//app = mergeTrees([].concat(deps, app), {overwrite: true});
+
+
+var bundle = stew.log(mergeTrees(addonFolders.concat([app])));
+
+
+app = new PrePackager(stew.debug(bundle, { name: 'OMG' }), {
   entries: ['packager-proto']
 });
 
