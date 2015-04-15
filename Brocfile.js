@@ -159,7 +159,6 @@ var DepMapper = CoreObject.extend({
 
 Error.stackTraceLimit = Infinity;
 var ember = 'node_modules/ember';
-var moment = 'node_modules/ember-moment';
 
 fs.mkdirsSync('./node_modules/ember/addon');
 fs.mkdirsSync('./node_modules/ember/app');
@@ -171,7 +170,6 @@ fs.writeJsonSync('./' + ember + '/addon/dep-graph.json', {
   }
 });
 
-var emberDep = find(ember + '/addon/{dep-graph.json}');
 var app = 'app';
 app = find(app, '**/*.{js,json}');
 
@@ -201,6 +199,7 @@ app = es6Transpiler(find(addonAppFolders.concat(app)), {
   blacklist: ['useStrict', 'es6.modules']
 });
 
+app = rename(app, 'app/', 'packager-proto/');
 
 app = new ES6Modules(app, {
   esperantoOptions: {
@@ -212,15 +211,15 @@ app = new ES6Modules(app, {
 
 // capture json
 
-app = rename(app, 'app/', 'packager-proto/');
+
 
 //app = mergeTrees([].concat(deps, app), {overwrite: true});
 
 
-var bundle = stew.log(mergeTrees(addonFolders.concat([app])));
+var bundle = stew.log(mergeTrees(addonFolders.concat([app, find('node_modules')])));
 
 
-app = new PrePackager(stew.debug(bundle, { name: 'OMG' }), {
+app = new PrePackager(bundle, {
   entries: ['packager-proto']
 });
 

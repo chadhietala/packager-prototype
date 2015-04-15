@@ -47,6 +47,7 @@
     "core-object": "^1.1.0",
     "fs-extra": "^0.16.5",
     "lodash-node": "^3.5.0",
+    "moment": "^2.10.2",
     "promise-map-series": "^0.2.1",
     "quick-temp": "^0.1.2",
     "rsvp": "^3.0.17",
