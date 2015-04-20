@@ -14,6 +14,10 @@ var ember = 'node_modules/ember';
 fs.mkdirsSync('./node_modules/ember/addon');
 fs.mkdirsSync('./node_modules/ember/app');
 fs.copySync('./bower_components/ember/ember.debug.js', './' + ember + '/addon/ember.js');
+fs.writeJsonSync('./' + ember + '/package.json', {
+  name: 'ember',
+  main: 'addon/ember.js'
+});
 fs.writeJsonSync('./' + ember + '/addon/dep-graph.json', {
   "ember.js": {
     "imports": [],
@@ -58,7 +62,7 @@ app = new ES6Modules(app, {
   }
 });
 
-var bundle = mergeTrees(addonFolders.concat([app, find('node_modules')]));
+var bundle = mergeTrees(addonFolders.concat([app]));
 
 app = new PrePackager(bundle, {
   entries: ['packager-proto']
